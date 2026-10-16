@@ -32,15 +32,24 @@ struct JSFetchRecoveryHandler {
         case crossOriginRedirect(URL)
     }
 
+    /// - Parameter cookies: The cookies the web view would send, so the request runs as the
+    ///   web view's user. They go in an ephemeral cookie store rather than `HTTPCookieStorage.shared`,
+    ///   which keeps them out of other `URLSession.shared` requests.
     func resolve(
         location: URL,
+        cookies: [HTTPCookie] = [],
         timeout: TimeInterval = Hotwire.config.redirectResolutionTimeout
     ) async throws -> Result {
         logger.debug("[JSFetchRecoveryHandler] resolve: \(location.absoluteString)")
+        let configuration = URLSessionConfiguration.ephemeral
+        cookies.forEach { configuration.httpCookieStorage?.setCookie($0) }
+        let session = URLSession(configuration: configuration)
+        defer { session.finishTasksAndInvalidate() }
+
         do {
             var request = URLRequest(url: location)
             request.timeoutInterval = timeout
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await session.data(for: request)
             let httpResponse = try validateResponse(response)
 
             guard let responseUrl = httpResponse.url else {

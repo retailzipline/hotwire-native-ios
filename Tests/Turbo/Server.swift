@@ -37,6 +37,15 @@ extension DefaultHTTPServer {
                 startResponse("200 OK", [("Content-Type", "text/html")])
                 sendBody("<html><body><iframe src=\"/unauthorized\"></iframe></body></html>".data(using: .utf8)!)
                 sendBody(Data())
+            case "/protected-redirect":
+                // Redirects to another origin only when the session cookie arrives, like a protected Rails page.
+                guard (environ["HTTP_COOKIE"] as? String)?.contains("session=abc") == true else {
+                    startResponse("401 Unauthorized", [])
+                    sendBody(Data())
+                    return
+                }
+                startResponse("302 Found", [("Location", "http://[::1]:8080/missing-library")])
+                sendBody(Data())
             case "/unauthorized":
                 startResponse("401 Unauthorized", [("Content-Type", "text/html")])
                 sendBody(Data())

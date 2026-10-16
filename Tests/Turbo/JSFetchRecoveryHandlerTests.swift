@@ -1,3 +1,4 @@
+import Embassy
 @testable import HotwireNative
 import OHHTTPStubs
 import OHHTTPStubsSwift
@@ -60,6 +61,26 @@ final class JSFetchRecoveryHandlerTests: XCTestCase {
 
         let result = try await handler.resolve(location: testURL)
         XCTAssertEqual(result, .crossOriginRedirect(redirectURL))
+    }
+
+    // MARK: - Cookies
+
+    func test_resolve_sendsTheGivenCookies() async throws {
+        // OHHTTPStubs sees the request before URLSession adds cookies, so this needs a real server.
+        let eventLoop = try SelectorEventLoop(selector: KqueueSelector())
+        let server = DefaultHTTPServer.turboServer(eventLoop: eventLoop)
+        try server.start()
+        DispatchQueue.global().async { eventLoop.runForever() }
+        defer {
+            server.stopAndWait()
+            eventLoop.stop()
+        }
+
+        let location = URL(string: "http://localhost:8080/protected-redirect")!
+        let cookie = HTTPCookie(properties: [.domain: "localhost", .path: "/", .name: "session", .value: "abc"])!
+
+        let result = try await handler.resolve(location: location, cookies: [cookie])
+        XCTAssertEqual(result, .crossOriginRedirect(URL(string: "http://[::1]:8080/missing-library")!))
     }
 
     // MARK: - Request failure

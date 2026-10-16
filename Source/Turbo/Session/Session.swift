@@ -404,7 +404,8 @@ extension Session: WebViewDelegate {
 
     private func resolveRedirect(to location: URL, identifier: String, statusCode: Int) async {
         do {
-            let result = try await JSFetchRecoveryHandler().resolve(location: location)
+            let cookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
+            let result = try await JSFetchRecoveryHandler().resolve(location: location, cookies: cookies)
             switch result {
             case .noRedirect:
                 // The server is reachable (JSFetchRecoveryHandler confirmed an HTTP response
